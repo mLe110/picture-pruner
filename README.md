@@ -97,3 +97,9 @@ Get curation progress summary:
 ```bash
 curl http://localhost:3001/api/sessions/<session-id>/progress
 ```
+
+List all imported photos (including current decision):
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/photos
+```

@@ -94,3 +94,13 @@ export interface SessionProgressSummary {
   exactGroupCount: number;
   similarGroupCount: number;
 }
+
+export interface SessionPhotoRecord {
+  id: string;
+  sourcePath: string;
+  fileSize: number;
+  width: number | null;
+  height: number | null;
+  takenAt: string | null;
+  decision: DecisionValue | null;
+}

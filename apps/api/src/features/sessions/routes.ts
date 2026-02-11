@@ -16,6 +16,7 @@ import {
   createSession,
   getSession,
   importPhotosForSession,
+  listSessionPhotos,
   listSessions
 } from "./service.js";
 import {
@@ -62,6 +63,18 @@ export function registerSessionRoutes(app: FastifyInstance) {
     }
 
     return { session };
+  });
+
+  app.get("/api/sessions/:sessionId/photos", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    try {
+      const photos = await listSessionPhotos(sessionId);
+      return { photos };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to list session photos";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
   });
 
   app.post("/api/sessions", async (request, reply) => {
