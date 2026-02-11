@@ -1,3 +1,4 @@
+import { createReadStream } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import { decisionValues } from "@picture-pruner/shared";
 import type { DecisionValue } from "@picture-pruner/shared";
@@ -15,6 +16,7 @@ import {
 } from "./review.js";
 import {
   createSession,
+  getSessionPhotoAsset,
   getSession,
   importPhotosForSession,
   listSessionPhotos,
@@ -74,6 +76,26 @@ export function registerSessionRoutes(app: FastifyInstance) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to list session photos";
       reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.get("/api/sessions/:sessionId/photos/:photoId/file", async (request, reply) => {
+    const { sessionId, photoId } = request.params as { sessionId: string; photoId: string };
+    try {
+      const asset = await getSessionPhotoAsset(sessionId, photoId);
+      reply.header("Cache-Control", "private, max-age=60");
+      reply.type(asset.mimeType);
+      return reply.send(createReadStream(asset.sourcePath));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load photo";
+      reply.status(
+        message.includes("does not exist") ||
+          message.includes("is not part of session") ||
+          message.includes("missing")
+          ? 404
+          : 400
+      );
       return { error: message };
     }
   });

@@ -28,16 +28,31 @@ async function apiRequest<T>(url: string, init?: RequestInit) {
   return payload as T;
 }
 
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select";
+}
+
 function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [importRootInput, setImportRootInput] = useState("");
   const [exportRootInput, setExportRootInput] = useState("");
+  const [showUndecidedOnly, setShowUndecidedOnly] = useState(false);
   const [progress, setProgress] = useState<SessionProgressSummary | null>(null);
   const [exactGroups, setExactGroups] = useState<PhotoGroupResult[]>([]);
   const [similarGroups, setSimilarGroups] = useState<PhotoGroupResult[]>([]);
   const [sessionPhotos, setSessionPhotos] = useState<SessionPhotoRecord[]>([]);
+  const [currentPhotoId, setCurrentPhotoId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -54,6 +69,26 @@ function App() {
     }
     return map;
   }, [sessionPhotos]);
+
+  const reviewPhotos = useMemo(
+    () =>
+      showUndecidedOnly
+        ? sessionPhotos.filter((photo) => photo.decision === null)
+        : sessionPhotos,
+    [sessionPhotos, showUndecidedOnly]
+  );
+
+  const currentPhoto = useMemo(
+    () => reviewPhotos.find((photo) => photo.id === currentPhotoId) ?? null,
+    [reviewPhotos, currentPhotoId]
+  );
+
+  const currentPhotoIndex = useMemo(() => {
+    if (!currentPhotoId) {
+      return -1;
+    }
+    return reviewPhotos.findIndex((photo) => photo.id === currentPhotoId);
+  }, [currentPhotoId, reviewPhotos]);
 
   const withBusy = useCallback(
     async <T,>(label: string, action: () => Promise<T>) => {
@@ -106,6 +141,15 @@ function App() {
     setSessionPhotos(photosPayload.photos);
   }, []);
 
+  const refreshSelectedSession = useCallback(async () => {
+    const sessionId = selectedSessionId;
+    if (!sessionId) {
+      return;
+    }
+
+    await Promise.all([loadSessions(), loadSessionDetails(sessionId)]);
+  }, [loadSessionDetails, loadSessions, selectedSessionId]);
+
   useEffect(() => {
     void (async () => {
       try {
@@ -134,6 +178,144 @@ function App() {
     });
   }, [selectedSessionId, loadSessionDetails, withBusy]);
 
+  useEffect(() => {
+    if (reviewPhotos.length === 0) {
+      setCurrentPhotoId(null);
+      return;
+    }
+
+    if (!currentPhotoId || !reviewPhotos.some((photo) => photo.id === currentPhotoId)) {
+      setCurrentPhotoId(reviewPhotos[0].id);
+    }
+  }, [currentPhotoId, reviewPhotos]);
+
+  const navigateReviewPhoto = useCallback(
+    (offset: number) => {
+      if (reviewPhotos.length === 0) {
+        return;
+      }
+
+      const currentIndex =
+        currentPhotoId !== null
+          ? reviewPhotos.findIndex((photo) => photo.id === currentPhotoId)
+          : -1;
+      const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex =
+        ((safeCurrentIndex + offset) % reviewPhotos.length + reviewPhotos.length) %
+        reviewPhotos.length;
+      setCurrentPhotoId(reviewPhotos[nextIndex].id);
+    },
+    [currentPhotoId, reviewPhotos]
+  );
+
+  const saveDecision = useCallback(
+    async (photoId: string, decision: DecisionValue, autoAdvance = false) => {
+      const sessionId = selectedSessionId;
+      if (!sessionId) {
+        return;
+      }
+
+      await withBusy(`Saving decision (${decision})`, async () => {
+        await apiRequest(`/api/sessions/${sessionId}/decisions/${photoId}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ decision })
+        });
+
+        const [progressPayload, photosPayload] = await Promise.all([
+          apiRequest<{ progress: SessionProgressSummary }>(`/api/sessions/${sessionId}/progress`),
+          apiRequest<{ photos: SessionPhotoRecord[] }>(`/api/sessions/${sessionId}/photos`)
+        ]);
+
+        setProgress(progressPayload.progress);
+        setSessionPhotos(photosPayload.photos);
+
+        if (autoAdvance) {
+          navigateReviewPhoto(1);
+        }
+      }).catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to save decision");
+      });
+    },
+    [navigateReviewPhoto, selectedSessionId, withBusy]
+  );
+
+  const clearDecision = useCallback(
+    async (photoId: string) => {
+      const sessionId = selectedSessionId;
+      if (!sessionId) {
+        return;
+      }
+
+      await withBusy("Clearing decision", async () => {
+        await apiRequest(`/api/sessions/${sessionId}/decisions/${photoId}`, {
+          method: "DELETE"
+        });
+        const [progressPayload, photosPayload] = await Promise.all([
+          apiRequest<{ progress: SessionProgressSummary }>(`/api/sessions/${sessionId}/progress`),
+          apiRequest<{ photos: SessionPhotoRecord[] }>(`/api/sessions/${sessionId}/photos`)
+        ]);
+        setProgress(progressPayload.progress);
+        setSessionPhotos(photosPayload.photos);
+      }).catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to clear decision");
+      });
+    },
+    [selectedSessionId, withBusy]
+  );
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (busyAction !== null || isTypingTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "j" || key === "arrowright") {
+        event.preventDefault();
+        navigateReviewPhoto(1);
+        return;
+      }
+      if (key === "h" || key === "arrowleft") {
+        event.preventDefault();
+        navigateReviewPhoto(-1);
+        return;
+      }
+      if (key === "x") {
+        event.preventDefault();
+        setShowUndecidedOnly((value) => !value);
+        return;
+      }
+      if (!currentPhotoId) {
+        return;
+      }
+      if (key === "k") {
+        event.preventDefault();
+        void saveDecision(currentPhotoId, "keep", true);
+        return;
+      }
+      if (key === "m") {
+        event.preventDefault();
+        void saveDecision(currentPhotoId, "maybe", true);
+        return;
+      }
+      if (key === "r") {
+        event.preventDefault();
+        void saveDecision(currentPhotoId, "reject", true);
+        return;
+      }
+      if (key === "u") {
+        event.preventDefault();
+        void clearDecision(currentPhotoId);
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [busyAction, clearDecision, currentPhotoId, navigateReviewPhoto, saveDecision]);
+
   const onCreateSession = useCallback(async () => {
     if (!importRootInput.trim()) {
       setErrorMessage("Import root is required.");
@@ -156,55 +338,21 @@ function App() {
   }, [importRootInput, loadSessions, withBusy]);
 
   const runSessionAction = useCallback(
-    async (
-      actionName: string,
-      endpoint: string,
-      successMessage: string,
-      method: "POST" | "PUT" | "DELETE" = "POST"
-    ) => {
+    async (actionName: string, endpoint: string, successMessage: string) => {
       if (!selectedSessionId) {
         setErrorMessage("Select a session first.");
         return;
       }
 
       await withBusy(actionName, async () => {
-        await apiRequest(endpoint, { method });
-        await Promise.all([loadSessions(), loadSessionDetails(selectedSessionId)]);
+        await apiRequest(endpoint, { method: "POST" });
+        await refreshSelectedSession();
         setStatusMessage(successMessage);
       }).catch((error) => {
         setErrorMessage(error instanceof Error ? error.message : `Failed: ${actionName}`);
       });
     },
-    [loadSessionDetails, loadSessions, selectedSessionId, withBusy]
-  );
-
-  const setDecision = useCallback(
-    async (photoId: string, decision: DecisionValue) => {
-      if (!selectedSessionId) {
-        return;
-      }
-
-      await withBusy(`Saving decision (${decision})`, async () => {
-        await apiRequest(`/api/sessions/${selectedSessionId}/decisions/${photoId}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ decision })
-        });
-
-        const [progressPayload, photosPayload] = await Promise.all([
-          apiRequest<{ progress: SessionProgressSummary }>(
-            `/api/sessions/${selectedSessionId}/progress`
-          ),
-          apiRequest<{ photos: SessionPhotoRecord[] }>(`/api/sessions/${selectedSessionId}/photos`)
-        ]);
-
-        setProgress(progressPayload.progress);
-        setSessionPhotos(photosPayload.photos);
-      }).catch((error) => {
-        setErrorMessage(error instanceof Error ? error.message : "Failed to save decision");
-      });
-    },
-    [selectedSessionId, withBusy]
+    [refreshSelectedSession, selectedSessionId, withBusy]
   );
 
   const onExportSelection = useCallback(async () => {
@@ -246,7 +394,7 @@ function App() {
       <header className="hero">
         <p className="kicker">Picture Pruner</p>
         <h1>Review Dashboard</h1>
-        <p>Import, analyze duplicates, and mark keep/reject/maybe selections.</p>
+        <p>Import, analyze duplicates, and curate with hotkeys.</p>
       </header>
 
       <section className="card">
@@ -349,10 +497,8 @@ function App() {
             disabled={!selectedSessionId || busyAction !== null}
             onClick={() =>
               void withBusy("Refreshing data", async () => {
-                if (selectedSessionId) {
-                  await Promise.all([loadSessions(), loadSessionDetails(selectedSessionId)]);
-                  setStatusMessage("Session data refreshed");
-                }
+                await refreshSelectedSession();
+                setStatusMessage("Session data refreshed");
               }).catch((error) => {
                 setErrorMessage(
                   error instanceof Error ? error.message : "Failed to refresh session"
@@ -365,6 +511,84 @@ function App() {
         </div>
         <p className="hint">{busyAction ?? statusMessage ?? "Ready"}</p>
         {errorMessage ? <p className="error">{errorMessage}</p> : null}
+      </section>
+
+      <section className="card review-card">
+        <div className="review-header">
+          <h2>Review</h2>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={showUndecidedOnly}
+              onChange={(event) => setShowUndecidedOnly(event.target.checked)}
+            />
+            Undecided only
+          </label>
+        </div>
+
+        <p className="hint hotkeys">
+          Hotkeys: <code>h</code>/<code>j</code> navigate, <code>k</code> keep, <code>m</code>{" "}
+          maybe, <code>r</code> reject, <code>u</code> clear, <code>x</code> toggle undecided
+          filter.
+        </p>
+
+        {currentPhoto ? (
+          <div className="review-grid">
+            <div className="preview-pane">
+              <img
+                src={`/api/sessions/${selectedSessionId}/photos/${currentPhoto.id}/file`}
+                alt={currentPhoto.sourcePath}
+              />
+            </div>
+            <div className="review-meta">
+              <p>
+                Photo {currentPhotoIndex + 1} / {reviewPhotos.length}
+              </p>
+              <p className="path">{currentPhoto.sourcePath}</p>
+              <p>
+                {currentPhoto.width && currentPhoto.height
+                  ? `${currentPhoto.width}x${currentPhoto.height}`
+                  : "Unknown dimensions"}{" "}
+                | {currentPhoto.fileSize} bytes
+              </p>
+              <p>
+                Decision:{" "}
+                <strong>{decisionByPhotoId.get(currentPhoto.id) ?? "undecided"}</strong>
+              </p>
+              <div className="row wrap">
+                <button disabled={busyAction !== null} onClick={() => navigateReviewPhoto(-1)}>
+                  Prev
+                </button>
+                <button disabled={busyAction !== null} onClick={() => navigateReviewPhoto(1)}>
+                  Next
+                </button>
+                <button
+                  disabled={busyAction !== null}
+                  onClick={() => void saveDecision(currentPhoto.id, "keep", true)}
+                >
+                  Keep
+                </button>
+                <button
+                  disabled={busyAction !== null}
+                  onClick={() => void saveDecision(currentPhoto.id, "maybe", true)}
+                >
+                  Maybe
+                </button>
+                <button
+                  disabled={busyAction !== null}
+                  onClick={() => void saveDecision(currentPhoto.id, "reject", true)}
+                >
+                  Reject
+                </button>
+                <button disabled={busyAction !== null} onClick={() => void clearDecision(currentPhoto.id)}>
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p>No photos available in this review queue.</p>
+        )}
       </section>
 
       <section className="card">
@@ -405,7 +629,9 @@ function App() {
                 </header>
                 {group.photos.map((photo) => (
                   <div className="photo-row" key={photo.id}>
-                    <span className="path">{photo.sourcePath}</span>
+                    <button className="link-button path" onClick={() => setCurrentPhotoId(photo.id)}>
+                      {photo.sourcePath}
+                    </button>
                     <span className={`decision-badge ${decisionByPhotoId.get(photo.id) ?? "none"}`}>
                       {decisionByPhotoId.get(photo.id) ?? "undecided"}
                     </span>
@@ -414,7 +640,7 @@ function App() {
                         <button
                           key={decision}
                           disabled={busyAction !== null}
-                          onClick={() => void setDecision(photo.id, decision)}
+                          onClick={() => void saveDecision(photo.id, decision)}
                         >
                           {decision}
                         </button>
@@ -442,7 +668,9 @@ function App() {
                 </header>
                 {group.photos.map((photo) => (
                   <div className="photo-row" key={photo.id}>
-                    <span className="path">{photo.sourcePath}</span>
+                    <button className="link-button path" onClick={() => setCurrentPhotoId(photo.id)}>
+                      {photo.sourcePath}
+                    </button>
                     <span className={`decision-badge ${decisionByPhotoId.get(photo.id) ?? "none"}`}>
                       {decisionByPhotoId.get(photo.id) ?? "undecided"}
                     </span>
@@ -451,7 +679,7 @@ function App() {
                         <button
                           key={decision}
                           disabled={busyAction !== null}
-                          onClick={() => void setDecision(photo.id, decision)}
+                          onClick={() => void saveDecision(photo.id, decision)}
                         >
                           {decision}
                         </button>

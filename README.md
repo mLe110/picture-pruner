@@ -104,6 +104,12 @@ List all imported photos (including current decision):
 curl http://localhost:3001/api/sessions/<session-id>/photos
 ```
 
+Fetch one session photo file (for preview):
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/photos/<photo-id>/file --output photo.jpg
+```
+
 Export only `keep` photos to a folder:
 
 ```bash

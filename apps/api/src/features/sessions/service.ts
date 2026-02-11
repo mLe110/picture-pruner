@@ -314,6 +314,32 @@ export async function listSessionPhotos(sessionId: string) {
   );
 }
 
+export async function getSessionPhotoAsset(sessionId: string, photoId: string) {
+  const row = await db
+    .select({
+      sourcePath: photos.sourcePath,
+      mimeType: photos.mimeType
+    })
+    .from(sessionPhotos)
+    .innerJoin(photos, eq(photos.id, sessionPhotos.photoId))
+    .where(and(eq(sessionPhotos.sessionId, sessionId), eq(sessionPhotos.photoId, photoId)))
+    .then((rows) => rows[0]);
+
+  if (!row) {
+    throw new Error(`Photo ${photoId} is not part of session ${sessionId}`);
+  }
+
+  const sourceStat = await fs.stat(row.sourcePath).catch(() => null);
+  if (!sourceStat || !sourceStat.isFile()) {
+    throw new Error(`Source photo is missing: ${row.sourcePath}`);
+  }
+
+  return {
+    sourcePath: row.sourcePath,
+    mimeType: row.mimeType ?? getMimeTypeByExtension(row.sourcePath) ?? "application/octet-stream"
+  };
+}
+
 export async function importPhotosForSession(
   sessionId: string,
   importRootOverride?: string

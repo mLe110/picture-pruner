@@ -109,6 +109,71 @@ button:disabled {
   margin: 0;
 }
 
+.review-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.9));
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.toggle input {
+  min-width: unset;
+  width: 16px;
+  height: 16px;
+}
+
+.hotkeys code {
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(260px, 1fr);
+  gap: 14px;
+}
+
+.preview-pane {
+  min-height: 280px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #0f172a;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.preview-pane img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.review-meta {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px;
+}
+
+.review-meta p {
+  margin: 0 0 8px;
+}
+
 .group-list {
   display: grid;
   gap: 10px;
@@ -184,6 +249,19 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.link-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: #1d4ed8;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 .hint {
   margin: 6px 0 0;
   font-size: 0.9rem;
@@ -197,6 +275,10 @@ button:disabled {
 @media (max-width: 900px) {
   .metrics {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
+  .review-grid {
+    grid-template-columns: 1fr;
   }
 
   .photo-row {
