@@ -117,3 +117,11 @@ curl -X POST http://localhost:3001/api/sessions/<session-id>/export \
   -H "content-type: application/json" \
   -d '{"outputRoot":"/absolute/path/to/export"}'
 ```
+
+Pick one photo as winner in a duplicate/similar group (auto-reject the others):
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/groups/<group-id>/pick \
+  -H "content-type: application/json" \
+  -d '{"keepPhotoId":"<photo-id>","rejectOthers":true}'
+```

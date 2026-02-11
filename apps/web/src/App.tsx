@@ -389,6 +389,32 @@ function App() {
     });
   }, [exportRootInput, selectedSessionId, withBusy]);
 
+  const onPickGroupPhoto = useCallback(
+    async (groupId: string, keepPhotoId: string) => {
+      if (!selectedSessionId) {
+        setErrorMessage("Select a session first.");
+        return;
+      }
+
+      await withBusy("Applying group pick", async () => {
+        await apiRequest(`/api/sessions/${selectedSessionId}/groups/${groupId}/pick`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            keepPhotoId,
+            rejectOthers: true
+          })
+        });
+
+        await refreshSelectedSession();
+        setStatusMessage("Group pick applied");
+      }).catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to apply group pick");
+      });
+    },
+    [refreshSelectedSession, selectedSessionId, withBusy]
+  );
+
   return (
     <main className="app-shell">
       <header className="hero">
@@ -636,6 +662,12 @@ function App() {
                       {decisionByPhotoId.get(photo.id) ?? "undecided"}
                     </span>
                     <div className="decision-actions">
+                      <button
+                        disabled={busyAction !== null}
+                        onClick={() => void onPickGroupPhoto(group.id, photo.id)}
+                      >
+                        Pick Best
+                      </button>
                       {decisionValues.map((decision) => (
                         <button
                           key={decision}
@@ -675,6 +707,12 @@ function App() {
                       {decisionByPhotoId.get(photo.id) ?? "undecided"}
                     </span>
                     <div className="decision-actions">
+                      <button
+                        disabled={busyAction !== null}
+                        onClick={() => void onPickGroupPhoto(group.id, photo.id)}
+                      >
+                        Pick Best
+                      </button>
                       {decisionValues.map((decision) => (
                         <button
                           key={decision}
