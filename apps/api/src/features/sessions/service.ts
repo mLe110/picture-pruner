@@ -4,13 +4,14 @@ import path from "node:path";
 
 import type {
   ImportSessionResult,
+  SessionPhotoRecord,
   SessionStatus,
   SessionSummary
 } from "@picture-pruner/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { photos, sessionPhotos, sessions } from "../../db/schema.js";
+import { decisions, photos, sessionPhotos, sessions } from "../../db/schema.js";
 
 type Dimensions = {
   width: number;
@@ -266,6 +267,51 @@ export async function getSession(sessionId: string) {
 
   const row = rows[0];
   return row ? mapSessionRowToSummary(row) : null;
+}
+
+export async function listSessionPhotos(sessionId: string) {
+  const sessionExists = await db.query.sessions.findFirst({
+    columns: { id: true },
+    where: eq(sessions.id, sessionId)
+  });
+  if (!sessionExists) {
+    throw new Error(`Session ${sessionId} does not exist`);
+  }
+
+  const rows = await db
+    .select({
+      id: photos.id,
+      sourcePath: photos.sourcePath,
+      fileSize: photos.fileSize,
+      width: photos.width,
+      height: photos.height,
+      takenAt: photos.takenAt,
+      decision: decisions.decision
+    })
+    .from(sessionPhotos)
+    .innerJoin(photos, eq(photos.id, sessionPhotos.photoId))
+    .leftJoin(
+      decisions,
+      and(
+        eq(decisions.sessionId, sessionPhotos.sessionId),
+        eq(decisions.photoId, sessionPhotos.photoId)
+      )
+    )
+    .where(eq(sessionPhotos.sessionId, sessionId))
+    .orderBy(photos.takenAt, photos.sourcePath);
+
+  return rows.map(
+    (row) =>
+      ({
+        id: row.id,
+        sourcePath: row.sourcePath,
+        fileSize: row.fileSize,
+        width: row.width,
+        height: row.height,
+        takenAt: row.takenAt ? row.takenAt.toISOString() : null,
+        decision: row.decision ?? null
+      }) satisfies SessionPhotoRecord
+  );
 }
 
 export async function importPhotosForSession(

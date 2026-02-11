@@ -52,3 +52,70 @@ export interface ExactDuplicateAnalysisResult {
   startedAt: string;
   finishedAt: string;
 }
+
+export interface SimilarDuplicateAnalysisResult {
+  sessionId: string;
+  scannedPhotoCount: number;
+  candidateGroupCount: number;
+  candidatePhotoCount: number;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface GroupedPhotoItem {
+  id: string;
+  sourcePath: string;
+  rank: number | null;
+}
+
+export interface PhotoGroupResult {
+  id: string;
+  createdAt: string;
+  confidence: number;
+  photos: GroupedPhotoItem[];
+}
+
+export interface SessionDecisionRecord {
+  sessionId: string;
+  photoId: string;
+  sourcePath: string;
+  decision: DecisionValue;
+  reason: string | null;
+  updatedAt: string;
+}
+
+export interface SessionProgressSummary {
+  sessionId: string;
+  totalPhotos: number;
+  keepCount: number;
+  rejectCount: number;
+  maybeCount: number;
+  undecidedCount: number;
+  exactGroupCount: number;
+  similarGroupCount: number;
+}
+
+export interface SessionPhotoRecord {
+  id: string;
+  sourcePath: string;
+  fileSize: number;
+  width: number | null;
+  height: number | null;
+  takenAt: string | null;
+  decision: DecisionValue | null;
+}
+
+export interface ExportSessionRequest {
+  outputRoot: string;
+}
+
+export interface ExportSessionResult {
+  sessionId: string;
+  outputRoot: string;
+  selectedPhotoCount: number;
+  exportedPhotoCount: number;
+  missingSourceCount: number;
+  skippedCount: number;
+  startedAt: string;
+  finishedAt: string;
+}

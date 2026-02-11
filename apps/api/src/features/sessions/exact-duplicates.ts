@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 
-import type { ExactDuplicateAnalysisResult } from "@picture-pruner/shared";
+import type { ExactDuplicateAnalysisResult, PhotoGroupResult } from "@picture-pruner/shared";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
@@ -128,6 +128,7 @@ export async function listExactDuplicateGroupsForSession(sessionId: string) {
     .select({
       groupId: groups.id,
       createdAt: groups.createdAt,
+      confidence: groups.confidence,
       photoId: photos.id,
       sourcePath: photos.sourcePath,
       rank: groupItems.rank
@@ -137,19 +138,13 @@ export async function listExactDuplicateGroupsForSession(sessionId: string) {
     .innerJoin(photos, eq(photos.id, groupItems.photoId))
     .where(and(eq(groups.sessionId, sessionId), eq(groups.kind, "exact")));
 
-  const grouped = new Map<
-    string,
-    {
-      id: string;
-      createdAt: string;
-      photos: Array<{ id: string; sourcePath: string; rank: number | null }>;
-    }
-  >();
+  const grouped = new Map<string, PhotoGroupResult>();
 
   for (const row of rows) {
     const entry = grouped.get(row.groupId) ?? {
       id: row.groupId,
       createdAt: row.createdAt.toISOString(),
+      confidence: row.confidence,
       photos: []
     };
     entry.photos.push({

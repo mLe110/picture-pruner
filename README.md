@@ -65,3 +65,49 @@ List exact duplicate groups:
 ```bash
 curl http://localhost:3001/api/sessions/<session-id>/analysis/exact-duplicates
 ```
+
+Run similar-candidate analysis (heuristic):
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/analysis/similar-candidates
+```
+
+List similar-candidate groups:
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/analysis/similar-candidates
+```
+
+Set a review decision for one photo:
+
+```bash
+curl -X PUT http://localhost:3001/api/sessions/<session-id>/decisions/<photo-id> \
+  -H "content-type: application/json" \
+  -d '{"decision":"keep","reason":"best composition"}'
+```
+
+Get all decisions for a session:
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/decisions
+```
+
+Get curation progress summary:
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/progress
+```
+
+List all imported photos (including current decision):
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/photos
+```
+
+Export only `keep` photos to a folder:
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/export \
+  -H "content-type: application/json" \
+  -d '{"outputRoot":"/absolute/path/to/export"}'
+```

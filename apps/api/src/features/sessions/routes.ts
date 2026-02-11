@@ -1,15 +1,29 @@
 import type { FastifyInstance } from "fastify";
+import { decisionValues } from "@picture-pruner/shared";
+import type { DecisionValue } from "@picture-pruner/shared";
 
 import {
   analyzeExactDuplicatesForSession,
   listExactDuplicateGroupsForSession
 } from "./exact-duplicates.js";
+import { exportSelectedPhotosForSession } from "./export.js";
+import {
+  clearSessionPhotoDecision,
+  getSessionProgress,
+  listSessionDecisions,
+  setSessionPhotoDecision
+} from "./review.js";
 import {
   createSession,
   getSession,
   importPhotosForSession,
+  listSessionPhotos,
   listSessions
 } from "./service.js";
+import {
+  analyzeSimilarCandidatesForSession,
+  listSimilarDuplicateGroupsForSession
+} from "./similar-duplicates.js";
 
 function asRecord(payload: unknown): Record<string, unknown> | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -23,6 +37,16 @@ function getStringField(payload: unknown, key: string) {
   const record = asRecord(payload);
   const value = record?.[key];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getOptionalStringField(payload: unknown, key: string) {
+  const record = asRecord(payload);
+  const value = record?.[key];
+  return typeof value === "string" ? value.trim() : null;
+}
+
+function isDecisionValue(value: string): value is DecisionValue {
+  return decisionValues.includes(value as DecisionValue);
 }
 
 export function registerSessionRoutes(app: FastifyInstance) {
@@ -40,6 +64,18 @@ export function registerSessionRoutes(app: FastifyInstance) {
     }
 
     return { session };
+  });
+
+  app.get("/api/sessions/:sessionId/photos", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    try {
+      const photos = await listSessionPhotos(sessionId);
+      return { photos };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to list session photos";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
   });
 
   app.post("/api/sessions", async (request, reply) => {
@@ -106,5 +142,126 @@ export function registerSessionRoutes(app: FastifyInstance) {
     const { sessionId } = request.params as { sessionId: string };
     const groups = await listExactDuplicateGroupsForSession(sessionId);
     return { groups };
+  });
+
+  app.post("/api/sessions/:sessionId/analysis/similar-candidates", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+
+    try {
+      const result = await analyzeSimilarCandidatesForSession(sessionId);
+      return { result };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to analyze similar candidates";
+
+      if (message.includes("does not exist")) {
+        reply.status(404);
+      } else {
+        reply.status(400);
+      }
+
+      return { error: message };
+    }
+  });
+
+  app.get("/api/sessions/:sessionId/analysis/similar-candidates", async (request) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const groups = await listSimilarDuplicateGroupsForSession(sessionId);
+    return { groups };
+  });
+
+  app.get("/api/sessions/:sessionId/decisions", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+
+    try {
+      const decisions = await listSessionDecisions(sessionId);
+      return { decisions };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to list decisions";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.put("/api/sessions/:sessionId/decisions/:photoId", async (request, reply) => {
+    const { sessionId, photoId } = request.params as { sessionId: string; photoId: string };
+    const decision = getStringField(request.body, "decision");
+    const reason = getOptionalStringField(request.body, "reason");
+
+    if (!decision || !isDecisionValue(decision)) {
+      reply.status(400);
+      return {
+        error: `Field 'decision' is required and must be one of: ${decisionValues.join(", ")}`
+      };
+    }
+
+    try {
+      const record = await setSessionPhotoDecision(
+        sessionId,
+        photoId,
+        decision,
+        reason && reason.length > 0 ? reason : null
+      );
+      return { decision: record };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save decision";
+      reply.status(
+        message.includes("does not exist") || message.includes("is not part of session")
+          ? 404
+          : 400
+      );
+      return { error: message };
+    }
+  });
+
+  app.delete("/api/sessions/:sessionId/decisions/:photoId", async (request, reply) => {
+    const { sessionId, photoId } = request.params as { sessionId: string; photoId: string };
+
+    try {
+      await clearSessionPhotoDecision(sessionId, photoId);
+      reply.status(204);
+      return null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to clear decision";
+      reply.status(
+        message.includes("does not exist") || message.includes("is not part of session")
+          ? 404
+          : 400
+      );
+      return { error: message };
+    }
+  });
+
+  app.get("/api/sessions/:sessionId/progress", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+
+    try {
+      const progress = await getSessionProgress(sessionId);
+      return { progress };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load progress";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.post("/api/sessions/:sessionId/export", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const outputRoot = getStringField(request.body, "outputRoot");
+
+    if (!outputRoot) {
+      reply.status(400);
+      return { error: "Field 'outputRoot' is required" };
+    }
+
+    try {
+      const result = await exportSelectedPhotosForSession(sessionId, outputRoot);
+      return { result };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export selected photos";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
   });
 }
