@@ -6,6 +6,7 @@ import {
   analyzeExactDuplicatesForSession,
   listExactDuplicateGroupsForSession
 } from "./exact-duplicates.js";
+import { exportSelectedPhotosForSession } from "./export.js";
 import {
   clearSessionPhotoDecision,
   getSessionProgress,
@@ -239,6 +240,26 @@ export function registerSessionRoutes(app: FastifyInstance) {
       return { progress };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load progress";
+      reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.post("/api/sessions/:sessionId/export", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const outputRoot = getStringField(request.body, "outputRoot");
+
+    if (!outputRoot) {
+      reply.status(400);
+      return { error: "Field 'outputRoot' is required" };
+    }
+
+    try {
+      const result = await exportSelectedPhotosForSession(sessionId, outputRoot);
+      return { result };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export selected photos";
       reply.status(message.includes("does not exist") ? 404 : 400);
       return { error: message };
     }

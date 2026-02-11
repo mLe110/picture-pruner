@@ -33,6 +33,7 @@ function App() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [importRootInput, setImportRootInput] = useState("");
+  const [exportRootInput, setExportRootInput] = useState("");
   const [progress, setProgress] = useState<SessionProgressSummary | null>(null);
   const [exactGroups, setExactGroups] = useState<PhotoGroupResult[]>([]);
   const [similarGroups, setSimilarGroups] = useState<PhotoGroupResult[]>([]);
@@ -206,6 +207,40 @@ function App() {
     [selectedSessionId, withBusy]
   );
 
+  const onExportSelection = useCallback(async () => {
+    if (!selectedSessionId) {
+      setErrorMessage("Select a session first.");
+      return;
+    }
+    if (!exportRootInput.trim()) {
+      setErrorMessage("Export root is required.");
+      return;
+    }
+
+    await withBusy("Exporting selected photos", async () => {
+      const payload = await apiRequest<{
+        result: {
+          outputRoot: string;
+          selectedPhotoCount: number;
+          exportedPhotoCount: number;
+          missingSourceCount: number;
+          skippedCount: number;
+        };
+      }>(`/api/sessions/${selectedSessionId}/export`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ outputRoot: exportRootInput.trim() })
+      });
+
+      const summary = payload.result;
+      setStatusMessage(
+        `Exported ${summary.exportedPhotoCount}/${summary.selectedPhotoCount} keep photos to ${summary.outputRoot} (missing: ${summary.missingSourceCount}, skipped: ${summary.skippedCount})`
+      );
+    }).catch((error) => {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to export selection");
+    });
+  }, [exportRootInput, selectedSessionId, withBusy]);
+
   return (
     <main className="app-shell">
       <header className="hero">
@@ -259,6 +294,20 @@ function App() {
 
       <section className="card">
         <h2>Actions</h2>
+        <div className="row">
+          <input
+            type="text"
+            value={exportRootInput}
+            onChange={(event) => setExportRootInput(event.target.value)}
+            placeholder="/absolute/path/to/export-folder"
+          />
+          <button
+            disabled={!selectedSessionId || busyAction !== null}
+            onClick={() => void onExportSelection()}
+          >
+            Export Keep Selection
+          </button>
+        </div>
         <div className="row wrap">
           <button
             disabled={!selectedSessionId || busyAction !== null}

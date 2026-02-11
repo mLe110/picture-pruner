@@ -104,3 +104,18 @@ export interface SessionPhotoRecord {
   takenAt: string | null;
   decision: DecisionValue | null;
 }
+
+export interface ExportSessionRequest {
+  outputRoot: string;
+}
+
+export interface ExportSessionResult {
+  sessionId: string;
+  outputRoot: string;
+  selectedPhotoCount: number;
+  exportedPhotoCount: number;
+  missingSourceCount: number;
+  skippedCount: number;
+  startedAt: string;
+  finishedAt: string;
+}

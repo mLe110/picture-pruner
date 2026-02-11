@@ -103,3 +103,11 @@ List all imported photos (including current decision):
 ```bash
 curl http://localhost:3001/api/sessions/<session-id>/photos
 ```
+
+Export only `keep` photos to a folder:
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/export \
+  -H "content-type: application/json" \
+  -d '{"outputRoot":"/absolute/path/to/export"}'
+```
