@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
 import {
+  analyzeExactDuplicatesForSession,
+  listExactDuplicateGroupsForSession
+} from "./exact-duplicates.js";
+import {
   createSession,
   getSession,
   importPhotosForSession,
@@ -76,5 +80,31 @@ export function registerSessionRoutes(app: FastifyInstance) {
 
       return { error: message };
     }
+  });
+
+  app.post("/api/sessions/:sessionId/analysis/exact-duplicates", async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+
+    try {
+      const result = await analyzeExactDuplicatesForSession(sessionId);
+      return { result };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to analyze exact duplicates";
+
+      if (message.includes("does not exist")) {
+        reply.status(404);
+      } else {
+        reply.status(400);
+      }
+
+      return { error: message };
+    }
+  });
+
+  app.get("/api/sessions/:sessionId/analysis/exact-duplicates", async (request) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const groups = await listExactDuplicateGroupsForSession(sessionId);
+    return { groups };
   });
 }

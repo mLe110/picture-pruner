@@ -41,3 +41,14 @@ export interface ImportSessionResult {
   startedAt: string;
   finishedAt: string;
 }
+
+export interface ExactDuplicateAnalysisResult {
+  sessionId: string;
+  scannedPhotoCount: number;
+  hashedPhotoCount: number;
+  duplicateGroupCount: number;
+  duplicatePhotoCount: number;
+  missingFileCount: number;
+  startedAt: string;
+  finishedAt: string;
+}
