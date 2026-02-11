@@ -119,3 +119,17 @@ export interface ExportSessionResult {
   startedAt: string;
   finishedAt: string;
 }
+
+export interface PickGroupPhotoRequest {
+  keepPhotoId: string;
+  rejectOthers?: boolean;
+  reason?: string;
+}
+
+export interface PickGroupPhotoResult {
+  sessionId: string;
+  groupId: string;
+  keepPhotoId: string;
+  rejectOthers: boolean;
+  updatedCount: number;
+}

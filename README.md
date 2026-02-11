@@ -104,10 +104,24 @@ List all imported photos (including current decision):
 curl http://localhost:3001/api/sessions/<session-id>/photos
 ```
 
+Fetch one session photo file (for preview):
+
+```bash
+curl http://localhost:3001/api/sessions/<session-id>/photos/<photo-id>/file --output photo.jpg
+```
+
 Export only `keep` photos to a folder:
 
 ```bash
 curl -X POST http://localhost:3001/api/sessions/<session-id>/export \
   -H "content-type: application/json" \
   -d '{"outputRoot":"/absolute/path/to/export"}'
+```
+
+Pick one photo as winner in a duplicate/similar group (auto-reject the others):
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/groups/<group-id>/pick \
+  -H "content-type: application/json" \
+  -d '{"keepPhotoId":"<photo-id>","rejectOthers":true}'
 ```

@@ -1,8 +1,13 @@
-import type { DecisionValue, SessionDecisionRecord, SessionProgressSummary } from "@picture-pruner/shared";
+import type {
+  DecisionValue,
+  PickGroupPhotoResult,
+  SessionDecisionRecord,
+  SessionProgressSummary
+} from "@picture-pruner/shared";
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "../../db/index.js";
-import { decisions, groups, photos, sessionPhotos, sessions } from "../../db/schema.js";
+import { decisions, groupItems, groups, photos, sessionPhotos, sessions } from "../../db/schema.js";
 
 type DecisionCountRow = {
   decision: DecisionValue;
@@ -205,4 +210,94 @@ export async function getSessionProgress(sessionId: string) {
     exactGroupCount,
     similarGroupCount
   } satisfies SessionProgressSummary;
+}
+
+export async function pickGroupPhoto(
+  sessionId: string,
+  groupId: string,
+  keepPhotoId: string,
+  rejectOthers: boolean,
+  reason: string | null
+) {
+  await assertSessionExists(sessionId);
+
+  const group = await db.query.groups.findFirst({
+    columns: {
+      id: true
+    },
+    where: and(eq(groups.id, groupId), eq(groups.sessionId, sessionId))
+  });
+  if (!group) {
+    throw new Error(`Group ${groupId} does not exist in session ${sessionId}`);
+  }
+
+  const groupPhotoRows = await db
+    .select({
+      photoId: groupItems.photoId
+    })
+    .from(groupItems)
+    .where(eq(groupItems.groupId, groupId));
+
+  if (groupPhotoRows.length === 0) {
+    throw new Error(`Group ${groupId} has no photos`);
+  }
+
+  const groupPhotoIds = groupPhotoRows.map((row) => row.photoId);
+  if (!groupPhotoIds.includes(keepPhotoId)) {
+    throw new Error(`Photo ${keepPhotoId} is not part of group ${groupId}`);
+  }
+
+  const now = new Date();
+  await db
+    .insert(decisions)
+    .values({
+      sessionId,
+      photoId: keepPhotoId,
+      decision: "keep",
+      reason,
+      updatedAt: now
+    })
+    .onConflictDoUpdate({
+      target: [decisions.sessionId, decisions.photoId],
+      set: {
+        decision: "keep",
+        reason,
+        updatedAt: now
+      }
+    });
+
+  let updatedCount = 1;
+  if (rejectOthers) {
+    const rejectPhotoIds = groupPhotoIds.filter((photoId) => photoId !== keepPhotoId);
+    if (rejectPhotoIds.length > 0) {
+      await db
+        .insert(decisions)
+        .values(
+          rejectPhotoIds.map((photoId) => ({
+            sessionId,
+            photoId,
+            decision: "reject" as const,
+            reason: "Auto-rejected after group pick",
+            updatedAt: now
+          }))
+        )
+        .onConflictDoUpdate({
+          target: [decisions.sessionId, decisions.photoId],
+          set: {
+            decision: "reject",
+            reason: "Auto-rejected after group pick",
+            updatedAt: now
+          }
+        });
+      updatedCount += rejectPhotoIds.length;
+    }
+  }
+
+  return {
+    sessionId,
+    groupId,
+    keepPhotoId,
+    rejectOthers,
+    updatedCount
+  } satisfies PickGroupPhotoResult;
 }

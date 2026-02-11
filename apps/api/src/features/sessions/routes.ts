@@ -1,3 +1,4 @@
+import { createReadStream } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import { decisionValues } from "@picture-pruner/shared";
 import type { DecisionValue } from "@picture-pruner/shared";
@@ -11,10 +12,12 @@ import {
   clearSessionPhotoDecision,
   getSessionProgress,
   listSessionDecisions,
+  pickGroupPhoto,
   setSessionPhotoDecision
 } from "./review.js";
 import {
   createSession,
+  getSessionPhotoAsset,
   getSession,
   importPhotosForSession,
   listSessionPhotos,
@@ -43,6 +46,12 @@ function getOptionalStringField(payload: unknown, key: string) {
   const record = asRecord(payload);
   const value = record?.[key];
   return typeof value === "string" ? value.trim() : null;
+}
+
+function getBooleanField(payload: unknown, key: string) {
+  const record = asRecord(payload);
+  const value = record?.[key];
+  return typeof value === "boolean" ? value : null;
 }
 
 function isDecisionValue(value: string): value is DecisionValue {
@@ -74,6 +83,26 @@ export function registerSessionRoutes(app: FastifyInstance) {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to list session photos";
       reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.get("/api/sessions/:sessionId/photos/:photoId/file", async (request, reply) => {
+    const { sessionId, photoId } = request.params as { sessionId: string; photoId: string };
+    try {
+      const asset = await getSessionPhotoAsset(sessionId, photoId);
+      reply.header("Cache-Control", "private, max-age=60");
+      reply.type(asset.mimeType);
+      return reply.send(createReadStream(asset.sourcePath));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load photo";
+      reply.status(
+        message.includes("does not exist") ||
+          message.includes("is not part of session") ||
+          message.includes("missing")
+          ? 404
+          : 400
+      );
       return { error: message };
     }
   });
@@ -261,6 +290,37 @@ export function registerSessionRoutes(app: FastifyInstance) {
       const message =
         error instanceof Error ? error.message : "Failed to export selected photos";
       reply.status(message.includes("does not exist") ? 404 : 400);
+      return { error: message };
+    }
+  });
+
+  app.post("/api/sessions/:sessionId/groups/:groupId/pick", async (request, reply) => {
+    const { sessionId, groupId } = request.params as { sessionId: string; groupId: string };
+    const keepPhotoId = getStringField(request.body, "keepPhotoId");
+    const reason = getOptionalStringField(request.body, "reason");
+    const rejectOthers = getBooleanField(request.body, "rejectOthers") ?? true;
+
+    if (!keepPhotoId) {
+      reply.status(400);
+      return { error: "Field 'keepPhotoId' is required" };
+    }
+
+    try {
+      const result = await pickGroupPhoto(
+        sessionId,
+        groupId,
+        keepPhotoId,
+        rejectOthers,
+        reason && reason.length > 0 ? reason : null
+      );
+      return { result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to pick group photo";
+      reply.status(
+        message.includes("does not exist") || message.includes("is not part of group")
+          ? 404
+          : 400
+      );
       return { error: message };
     }
   });
