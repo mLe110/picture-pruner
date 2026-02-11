@@ -1,0 +1,15 @@
+{
+  "name": "picture-pruner",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @picture-pruner/api --filter @picture-pruner/web dev",
+    "dev:api": "pnpm --filter @picture-pruner/api dev",
+    "dev:web": "pnpm --filter @picture-pruner/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @picture-pruner/api db:generate",
+    "db:migrate": "pnpm --filter @picture-pruner/api db:migrate"
+  }
+}
