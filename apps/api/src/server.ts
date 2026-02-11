@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 
+import { registerSessionRoutes } from "./features/sessions/routes.js";
 import { registerHealthRoutes } from "./routes/health.js";
 
 export function createServer() {
@@ -15,6 +16,7 @@ export function createServer() {
   });
 
   registerHealthRoutes(app);
+  registerSessionRoutes(app);
 
   return app;
 }

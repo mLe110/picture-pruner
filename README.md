@@ -37,3 +37,19 @@ Web runs on `http://localhost:5173`, API on `http://localhost:3001`.
 ```bash
 curl http://localhost:3001/api/health
 ```
+
+## Session and import endpoints (Slice 2)
+
+Create a session:
+
+```bash
+curl -X POST http://localhost:3001/api/sessions \
+  -H "content-type: application/json" \
+  -d '{"importRoot":"/absolute/path/to/photo-folder"}'
+```
+
+Import photos for an existing session:
+
+```bash
+curl -X POST http://localhost:3001/api/sessions/<session-id>/import
+```

@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
     "@picture-pruner/shared": "workspace:*",

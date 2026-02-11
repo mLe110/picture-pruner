@@ -39,6 +39,23 @@ export const photos = sqliteTable(
   ]
 );
 
+export const sessionPhotos = sqliteTable(
+  "session_photos",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    photoId: text("photo_id")
+      .notNull()
+      .references(() => photos.id, { onDelete: "cascade" }),
+    importedAt: integer("imported_at", { mode: "timestamp_ms" }).notNull()
+  },
+  (table) => [
+    primaryKey({ columns: [table.sessionId, table.photoId] }),
+    index("session_photos_photo_id_idx").on(table.photoId)
+  ]
+);
+
 export const groups = sqliteTable(
   "groups",
   {
@@ -92,6 +109,7 @@ export const decisions = sqliteTable(
 );
 
 export const sessionsRelations = relations(sessions, ({ many }) => ({
+  photos: many(sessionPhotos),
   groups: many(groups),
   decisions: many(decisions)
 }));
@@ -105,8 +123,20 @@ export const groupsRelations = relations(groups, ({ one, many }) => ({
 }));
 
 export const photosRelations = relations(photos, ({ many }) => ({
+  sessions: many(sessionPhotos),
   groupItems: many(groupItems),
   decisions: many(decisions)
+}));
+
+export const sessionPhotosRelations = relations(sessionPhotos, ({ one }) => ({
+  session: one(sessions, {
+    fields: [sessionPhotos.sessionId],
+    references: [sessions.id]
+  }),
+  photo: one(photos, {
+    fields: [sessionPhotos.photoId],
+    references: [photos.id]
+  })
 }));
 
 export const groupItemsRelations = relations(groupItems, ({ one }) => ({
