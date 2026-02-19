@@ -8,8 +8,7 @@ For a detailed breakdown of all features, see [`docs/FEATURES.md`](docs/FEATURES
 
 ## What It Does
 
-- **Import** photos from any local directory (JPEG, PNG, HEIC) — files stay in place, only metadata is stored
-  - HEIC support requires `sharp` with libvips HEIF support (included by default on macOS and most Linux distributions)
+- **Import** photos from any local directory (JPEG, PNG, ...) — files stay in place, only metadata is stored
 - **Detect exact duplicates** via SHA-256 content hashing
 - **Find visually similar photos** (burst shots, reframes, compression variants) using dHash perceptual hashing with Hamming distance grouping
 - **Review & curate** in a web UI with photo grid, lightbox, and keyboard shortcuts (`K` keep / `M` maybe / `D` discard)
