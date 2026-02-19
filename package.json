@@ -1,7 +1,13 @@
 {
   "name": "picture-pruner",
-  "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": "mLe110",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mLe110/picture-pruner.git"
+  },
+  "homepage": "https://github.com/mLe110/picture-pruner",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

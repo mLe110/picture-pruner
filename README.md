@@ -82,3 +82,19 @@ The app will be available at `http://localhost:3000`.
 | Image Processing | [sharp](https://sharp.pixelplumbing.com/) for perceptual hash computation                           |
 | UI Components    | [shadcn/ui](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/) + Tailwind CSS          |
 | Testing          | [Vitest](https://vitest.dev/)                                                                       |
+
+### Why Drizzle?
+
+Drizzle provides type-safe SQL queries that map directly to the database schema defined in TypeScript. Migrations are generated from schema diffs (`pnpm db:generate`) and applied with `pnpm db:migrate`, keeping the database in sync without manual SQL.
+
+### Why Zod?
+
+Every data structure is defined as a Zod schema first, and TypeScript types are derived with `z.infer<>`. This gives runtime validation (API boundaries, config loading) and compile-time type safety from a single source of truth.
+
+### Why perceptual hashing?
+
+Exact hashing (SHA-256) catches byte-identical duplicates, but photos from burst mode, different compression levels, or slight crops won't match. dHash produces a 64-bit fingerprint based on relative pixel brightness, allowing similarity comparison via Hamming distance — fast, no external services required, and works entirely offline.
+
+## License
+
+[MIT](LICENSE)
