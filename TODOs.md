@@ -1,0 +1,1 @@
+-[ ] Create new claude hook that runs formatter and linter BEFORE commit --> does CLAUDE get the response from the hook? (e.g., fixing linting issues automatically) -[ ] Think about which Claude skill I could build - more or less for learning how claude skills work (and when to build your own) -[ ] Think about how to better structure features in FEATURE.md

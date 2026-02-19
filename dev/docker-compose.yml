@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: picture-pruner-postgres
+    environment:
+      POSTGRES_USER: picture_pruner
+      POSTGRES_PASSWORD: picture_pruner_dev
+      POSTGRES_DB: picture_pruner
+    ports:
+      - "5432:5432"
+    volumes:
+      - picture_pruner_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U picture_pruner -d picture_pruner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  picture_pruner_postgres_data:

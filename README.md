@@ -1,127 +1,37 @@
-# picture-pruner
+# Picture Pruner
 
-Local-first photo curation app to prune vacation photos before exporting the final selection.
+Local web app for managing large shared photo collections. Identifies exact duplicates, finds visually similar photos, and lets you manually curate before exporting approved selections. Photos are read from and exported to local directories.
 
-## Monorepo layout
+## Prerequisites
 
-- `apps/api`: Fastify + Drizzle + SQLite backend
-- `apps/web`: React + Vite frontend
-- `packages/shared`: shared TypeScript contracts and domain types
+- [Bun](https://bun.sh/) (runtime)
+- [pnpm](https://pnpm.io/) (package manager)
+- [PostgreSQL](https://www.postgresql.org/) with [pgvector](https://github.com/pgvector/pgvector) extension
 
-## Getting started
-
-1. Install dependencies:
+## Setup
 
 ```bash
 pnpm install
+cp .env.example .env  # then edit .env
 ```
 
-2. Run the initial database migration:
+## Commands
 
-```bash
-pnpm db:migrate
-```
+| Command            | Description                          |
+| ------------------ | ------------------------------------ |
+| `pnpm dev`         | Start all packages in dev/watch mode |
+| `pnpm build`       | Build all packages                   |
+| `pnpm test`        | Run all tests via Vitest             |
+| `pnpm db:generate` | Generate Drizzle migrations          |
+| `pnpm db:migrate`  | Run database migrations              |
+| `pnpm lint`        | Check for lint errors                |
+| `pnpm lint:fix`    | Fix lint errors                      |
+| `pnpm format`      | Check formatting                     |
+| `pnpm format:fix`  | Fix formatting                       |
 
-The migration command creates the SQLite parent directory automatically (`apps/api/data`) if it does not exist.
+## Usage
 
-3. Start web and API in parallel:
-
-```bash
-pnpm dev
-```
-
-Web runs on `http://localhost:5173`, API on `http://localhost:3001`.
-
-## API quick check
-
-```bash
-curl http://localhost:3001/api/health
-```
-
-## Session and import endpoints (Slice 2)
-
-Create a session:
-
-```bash
-curl -X POST http://localhost:3001/api/sessions \
-  -H "content-type: application/json" \
-  -d '{"importRoot":"/absolute/path/to/photo-folder"}'
-```
-
-Import photos for an existing session:
-
-```bash
-curl -X POST http://localhost:3001/api/sessions/<session-id>/import
-```
-
-Run exact duplicate analysis:
-
-```bash
-curl -X POST http://localhost:3001/api/sessions/<session-id>/analysis/exact-duplicates
-```
-
-List exact duplicate groups:
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/analysis/exact-duplicates
-```
-
-Run similar-candidate analysis (heuristic):
-
-```bash
-curl -X POST http://localhost:3001/api/sessions/<session-id>/analysis/similar-candidates
-```
-
-List similar-candidate groups:
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/analysis/similar-candidates
-```
-
-Set a review decision for one photo:
-
-```bash
-curl -X PUT http://localhost:3001/api/sessions/<session-id>/decisions/<photo-id> \
-  -H "content-type: application/json" \
-  -d '{"decision":"keep","reason":"best composition"}'
-```
-
-Get all decisions for a session:
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/decisions
-```
-
-Get curation progress summary:
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/progress
-```
-
-List all imported photos (including current decision):
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/photos
-```
-
-Fetch one session photo file (for preview):
-
-```bash
-curl http://localhost:3001/api/sessions/<session-id>/photos/<photo-id>/file --output photo.jpg
-```
-
-Export only `keep` photos to a folder:
-
-```bash
-curl -X POST http://localhost:3001/api/sessions/<session-id>/export \
-  -H "content-type: application/json" \
-  -d '{"outputRoot":"/absolute/path/to/export"}'
-```
-
-Pick one photo as winner in a duplicate/similar group (auto-reject the others):
-
-```bash
-curl -X POST http://localhost:3001/api/sessions/<session-id>/groups/<group-id>/pick \
-  -H "content-type: application/json" \
-  -d '{"keepPhotoId":"<photo-id>","rejectOthers":true}'
-```
+1. Place photos in `data/input/`
+2. Run `pnpm dev` and open the frontend
+3. Import, review duplicates/similar groups, and curate
+4. Export approved photos — they appear in `data/output/`

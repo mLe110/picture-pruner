@@ -1,0 +1,1 @@
+CREATE INDEX "photos_project_id_hash_idx" ON "photos" USING btree ("project_id","hash");
