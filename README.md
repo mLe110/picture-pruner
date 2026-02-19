@@ -9,6 +9,7 @@ For a detailed breakdown of all features, see [`docs/FEATURES.md`](docs/FEATURES
 ## What It Does
 
 - **Import** photos from any local directory (JPEG, PNG, HEIC) — files stay in place, only metadata is stored
+  - HEIC support requires `sharp` with libvips HEIF support (included by default on macOS and most Linux distributions)
 - **Detect exact duplicates** via SHA-256 content hashing
 - **Find visually similar photos** (burst shots, reframes, compression variants) using dHash perceptual hashing with Hamming distance grouping
 - **Review & curate** in a web UI with photo grid, lightbox, and keyboard shortcuts (`K` keep / `M` maybe / `D` discard)
@@ -58,17 +59,19 @@ The app will be available at `http://localhost:3000`.
 
 ## Commands
 
-| Command            | Description                    |
-| ------------------ | ------------------------------ |
-| `pnpm dev`         | Start Next.js dev server       |
-| `pnpm build`       | Production build               |
-| `pnpm test`        | Run all tests via Vitest       |
-| `pnpm db:generate` | Generate Drizzle migrations    |
-| `pnpm db:migrate`  | Run database migrations        |
-| `pnpm lint`        | Check for lint errors          |
-| `pnpm lint:fix`    | Fix lint errors                |
-| `pnpm format`      | Check formatting with Prettier |
-| `pnpm format:fix`  | Fix formatting with Prettier   |
+| Command            | Description                     |
+| ------------------ | ------------------------------- |
+| `pnpm dev`         | Start Next.js dev server        |
+| `pnpm build`       | Production build                |
+| `pnpm start`       | Start production server         |
+| `pnpm test`        | Run all tests via Vitest        |
+| `pnpm db:generate` | Generate Drizzle migrations     |
+| `pnpm db:migrate`  | Run database migrations         |
+| `pnpm db:reset`    | Reset database (drops all data) |
+| `pnpm lint`        | Check for lint errors           |
+| `pnpm lint:fix`    | Fix lint errors                 |
+| `pnpm format`      | Check formatting with Prettier  |
+| `pnpm format:fix`  | Fix formatting with Prettier    |
 
 ## Tech Stack & Key Decisions
 
@@ -83,17 +86,9 @@ The app will be available at `http://localhost:3000`.
 | UI Components    | [shadcn/ui](https://ui.shadcn.com/) + [Radix UI](https://www.radix-ui.com/) + Tailwind CSS          |
 | Testing          | [Vitest](https://vitest.dev/)                                                                       |
 
-### Why Drizzle?
+## Contributing
 
-Drizzle provides type-safe SQL queries that map directly to the database schema defined in TypeScript. Migrations are generated from schema diffs (`pnpm db:generate`) and applied with `pnpm db:migrate`, keeping the database in sync without manual SQL.
-
-### Why Zod?
-
-Every data structure is defined as a Zod schema first, and TypeScript types are derived with `z.infer<>`. This gives runtime validation (API boundaries, config loading) and compile-time type safety from a single source of truth.
-
-### Why perceptual hashing?
-
-Exact hashing (SHA-256) catches byte-identical duplicates, but photos from burst mode, different compression levels, or slight crops won't match. dHash produces a 64-bit fingerprint based on relative pixel brightness, allowing similarity comparison via Hamming distance — fast, no external services required, and works entirely offline.
+Contributions are welcome! Please open an [issue](https://github.com/mLe110/picture-pruner/issues) to report bugs or suggest features, or submit a pull request directly.
 
 ## License
 
